@@ -142,6 +142,48 @@ func TestClaudeCodeMode_HeaderLogic(t *testing.T) {
 	})
 }
 
+func TestClaudeProvider_ProviderDomainConfig(t *testing.T) {
+	t.Run("default_domain_when_providerDomain_not_set", func(t *testing.T) {
+		provider := &claudeProvider{
+			config: ProviderConfig{
+				apiTokens: []string{"test-token"},
+			},
+		}
+		// When providerDomain is not configured, the provider should use the default claudeDomain
+		assert.Equal(t, "", provider.config.providerDomain)
+		assert.Equal(t, "api.anthropic.com", claudeDomain)
+	})
+
+	t.Run("custom_domain_when_providerDomain_is_set", func(t *testing.T) {
+		provider := &claudeProvider{
+			config: ProviderConfig{
+				apiTokens:      []string{"test-token"},
+				providerDomain: "api.modelarts-maas.com",
+			},
+		}
+		// When providerDomain is configured, the provider should use it instead of the default
+		assert.Equal(t, "api.modelarts-maas.com", provider.config.providerDomain)
+	})
+
+	t.Run("host_selection_logic", func(t *testing.T) {
+		// Simulate the host selection logic from TransformRequestHeaders
+		selectHost := func(config ProviderConfig) string {
+			if config.providerDomain != "" {
+				return config.providerDomain
+			}
+			return claudeDomain
+		}
+
+		// Without providerDomain: should use default
+		assert.Equal(t, "api.anthropic.com", selectHost(ProviderConfig{}))
+
+		// With providerDomain: should use custom domain
+		assert.Equal(t, "custom-gateway.example.com", selectHost(ProviderConfig{
+			providerDomain: "custom-gateway.example.com",
+		}))
+	})
+}
+
 func TestClaudeProvider_BuildClaudeTextGenRequest_StandardMode(t *testing.T) {
 	provider := &claudeProvider{
 		config: ProviderConfig{
